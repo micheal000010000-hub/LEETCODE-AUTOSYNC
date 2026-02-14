@@ -40,7 +40,7 @@ def main():
         )
 
         # Step 2: Generate LLM content
-        print("Generating structured solution post using Gemini...")
+        print("Generating structured solution post using Mistral...")
 
         structured_post = generate_solution_post(
             problem_number,

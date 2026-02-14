@@ -1,6 +1,6 @@
-# 🚀 LeetCode AutoSync with Gemini 2.5 Flash
+# 🚀 LeetCode AutoSync with Mistral (via Ollama)
 
-Automate your LeetCode workflow like a professional.
+Automate your LeetCode workflow like a professional. This README has been updated to use the Mistral model (run locally via `ollama` or via hosted Mistral endpoints) instead of Gemini.
 
 This tool helps you:
 
@@ -90,9 +90,9 @@ Link: https://leetcode.com/...
 
 ---
 
-### 3️⃣ Calls Gemini 2.5 Flash
+### 3️⃣ Calls an LLM (Mistral via Ollama or hosted)
 
-It generates a structured solution post including:
+It generates a structured solution post using a Mistral model (local via `ollama` or a hosted Mistral API) and includes:
 
 - A professional, descriptive title  
   (e.g., "O(n) HashMap-Based Python Solution | Clean Approach")
@@ -139,19 +139,15 @@ Using today's date automatically.
 
 # 🤖 AI Model Used
 
-This project uses:
+This project is configured to use Mistral models. You can run Mistral locally via `ollama` (recommended for offline/local development) or use a hosted Mistral endpoint (for managed inference).
 
-## Gemini 2.5 Flash
+Example model: `mistralai/mistral-7b` (or any other Mistral model tag supported by your runtime). The repository code expects an LLM endpoint; see the *Configuration* section for environment variables.
 
-Model: `gemini-2.5-flash`  
-SDK: `google-genai`
+Why Mistral?
 
-Why Gemini 2.5 Flash?
-
-- Fast response time
-- High-quality technical writing
-- Excellent structured markdown generation
-- Strong reasoning for time & space complexity detection
+- Strong technical writing for concise explanations
+- Efficient inference for local heavyweight models
+- Good open-source model options for offline usage
 
 ---
 
@@ -211,28 +207,34 @@ Create a `.env` file inside `leetcode_autosync/`:
 
 ```
 LEETCODE_REPO_PATH=ABSOLUTE_PATH_TO_YOUR_LEETCODE_REPO
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+# If using local Ollama (default example):
+OLLAMA_URL=http://localhost:11434
+MISTRAL_MODEL=mistralai/mistral-7b
+
+# If using a hosted Mistral API instead of Ollama, set:
+# MISTRAL_API_KEY=your_hosted_mistral_api_key
+# MISTRAL_API_URL=https://api.mistral.ai/v1
 ```
 
 Example (Windows):
 
 ```
 LEETCODE_REPO_PATH=C:/Users/YourName/Documents/LeetCode Solutions
-```
-
-Example (Mac/Linux):
-
-```
-LEETCODE_REPO_PATH=/Users/yourname/Documents/LeetCode Solutions
+OLLAMA_URL=http://localhost:11434
+MISTRAL_MODEL=mistralai/mistral-7b
 ```
 
 ---
 
-# 📦 requirements.txt
+# 📦 requirements & dependencies
+
+The project uses `python-dotenv` for configuration. If you will call a local `ollama` HTTP API, ensure you have `requests` installed as well.
+
+Recommended `requirements.txt` entries:
 
 ```
 python-dotenv
-google-genai
+requests
 ```
 
 Install:
@@ -240,6 +242,8 @@ Install:
 ```
 pip install -r requirements.txt
 ```
+
+If you previously used `google-genai` for Gemini, remove or ignore it when switching to Ollama-based Mistral usage unless you still plan to use Gemini.
 
 ---
 
@@ -267,12 +271,108 @@ Updates LeetCode Repo
   ↓
 llm_generator.py
   ↓
-Gemini 2.5 Flash
+Mistral model (local via Ollama or hosted Mistral API)
   ↓
 Structured Markdown Output
   ↓
 Saved in copy_paste_solution/
 ```
+
+---
+
+## ✅ Running Mistral locally with Ollama (detailed)
+
+This project supports running Mistral models locally using the `ollama` runtime which exposes a simple HTTP API by default on `http://localhost:11434`.
+
+1) Install prerequisites
+
+- macOS: Install via Homebrew (recommended):
+
+  ```bash
+  brew install ollama
+  ```
+
+- Linux: Use the official install script (check https://ollama.com/docs/install for the latest):
+
+  ```bash
+  curl -sSf https://ollama.com/install.sh | sh
+  ```
+
+- Windows: Use WSL2 (Ubuntu) or Docker. Recommended flow:
+
+  - Install WSL2 and an Ubuntu distro from the Microsoft Store.
+  - Inside WSL, follow the Linux install steps above.
+  - Alternatively, run `ollama` inside Docker if you prefer containerized usage.
+
+2) Start or verify `ollama`
+
+After installation, verify the daemon is running and reachable:
+
+```bash
+ollama --version
+ollama list   # shows downloaded models
+```
+
+If `ollama` provides a system service, ensure it is running. Otherwise starting `ollama` is typically automatic on first command.
+
+3) Pull a Mistral model
+
+Find the exact model tag in the Ollama model registry or your preferred model registry. Example (replace with the correct tag):
+
+```bash
+ollama pull mistralai/mistral-7b
+```
+
+You can list models with:
+
+```bash
+ollama list
+```
+
+4) Test the model via the HTTP API
+
+Basic `curl` test (replace `mistralai/mistral-7b` if needed):
+
+```bash
+curl -s -X POST "http://localhost:11434/api/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"mistralai/mistral-7b","prompt":"Explain quicksort in two sentences."}'
+```
+
+Example Python usage (simple request):
+
+```python
+import os
+import requests
+
+ollama_url = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+model = os.getenv('MISTRAL_MODEL', 'mistralai/mistral-7b')
+
+resp = requests.post(
+    f"{ollama_url}/api/generate",
+    json={"model": model, "prompt": "Write a short explanation of Dijkstra's algorithm."},
+)
+print(resp.json())
+```
+
+5) Integrate with this project
+
+- Set `OLLAMA_URL` and `MISTRAL_MODEL` in your `.env`.
+- Update `llm_generator.py` (or your LLM wrapper) to call `OLLAMA_URL/api/generate` using `requests` and use the `MISTRAL_MODEL` name when generating prompts.
+
+---
+
+## ✅ Using Hosted Mistral APIs
+
+If you prefer a hosted Mistral service (instead of local Ollama), set `MISTRAL_API_URL` and `MISTRAL_API_KEY` in `.env`. The calling pattern depends on the hosted provider's API (refer to their docs). Typical steps:
+
+1. Obtain an API key from the hosted provider.
+2. Put `MISTRAL_API_KEY` and `MISTRAL_API_URL` in `.env`.
+3. Update `llm_generator.py` to send requests to the provider's endpoint with the API key.
+
+---
+
+If you want, I can also open `llm_generator.py` and provide a compact example that calls `ollama`'s HTTP API directly. Would you like that?
 
 Clean separation of responsibilities.
 
