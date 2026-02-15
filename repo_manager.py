@@ -2,7 +2,7 @@ import os
 from config import LEETCODE_REPO_PATH
 
 
-def add_new_solution(problem_number, problem_name, difficulty, link, solution_code):
+def add_new_solution(problem_number, problem_name, difficulty, link, solution_code, filename):
     difficulty = difficulty.lower()
 
     if difficulty not in ["easy", "medium", "hard"]:
@@ -17,13 +17,13 @@ def add_new_solution(problem_number, problem_name, difficulty, link, solution_co
     file_path = os.path.join(folder_path, filename)
 
     file_content = f'''"""
-LeetCode {problem_number}_{problem_name}
-Difficulty: {difficulty.capitalize()}
-Link: {link}
-"""
+    LeetCode {problem_number}_{problem_name}
+    Difficulty: {difficulty.capitalize()}
+    Link: {link}
+    """
 
-{solution_code}
-'''
+    {solution_code}
+    '''
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(file_content)

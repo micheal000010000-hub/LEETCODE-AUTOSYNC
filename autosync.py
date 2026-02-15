@@ -12,6 +12,12 @@ def main():
     print("2 → Push existing changes to GitHub")
 
     choice = input("Select option (1 or 2): ").strip()
+    LANGUAGE_MAP = {
+    "1": ".py",
+    "2": ".sql",
+    "3": ".cpp",
+    "4": ".java"
+    }
 
     if choice == "1":
         problem_number = input("Problem number: ").strip()
@@ -19,7 +25,21 @@ def main():
         difficulty = input("Difficulty (easy/medium/hard): ").strip()
         link = input("Problem link: ").strip()
 
-        print("Paste your solution below. Type END on a new line to finish:")
+        print("\nSelect Language:")
+        print("1 → Python")
+        print("2 → SQL")
+        print("3 → C++")
+        print("4 → Java")
+
+        lang_choice = input("Enter option number: ").strip()
+
+        if lang_choice not in LANGUAGE_MAP:
+            print("Invalid language selection.")
+            return
+
+        extension = LANGUAGE_MAP[lang_choice]
+
+        print("\nPaste your solution below. Type END on a new line to finish:")
 
         lines = []
         while True:
@@ -30,13 +50,16 @@ def main():
 
         solution_code = "\n".join(lines)
 
-        # Step 1: Add locally
+        safe_problem_name = problem_name.replace(" ", "_")
+        filename = f"{problem_number}_{safe_problem_name}{extension}"
+
         add_new_solution(
             problem_number,
             problem_name,
             difficulty,
             link,
-            solution_code
+            solution_code,
+            filename
         )
 
         # Step 2: Generate LLM content
