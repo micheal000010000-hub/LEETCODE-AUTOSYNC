@@ -13,10 +13,10 @@ def main():
 
     choice = input("Select option (1 or 2): ").strip()
     LANGUAGE_MAP = {
-    "1": ".py",
-    "2": ".sql",
-    "3": ".cpp",
-    "4": ".java"
+    "1": ("py", "Python"),
+    "2": ("sql", "SQL"),
+    "3": ("cpp", "C++"),
+    "4": ("java", "Java")
     }
 
     if choice == "1":
@@ -37,7 +37,8 @@ def main():
             print("Invalid language selection.")
             return
 
-        extension = LANGUAGE_MAP[lang_choice]
+        extension = LANGUAGE_MAP[lang_choice][0]
+        language_name = LANGUAGE_MAP[lang_choice][1]
 
         print("\nPaste your solution below. Type END on a new line to finish:")
 
@@ -70,7 +71,8 @@ def main():
             problem_name,
             difficulty,
             link,
-            solution_code
+            solution_code,
+            language_name
         )
 
         
