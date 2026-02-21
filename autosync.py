@@ -32,7 +32,7 @@ MODEL_NAME = "mistral:latest"
 
 def stop_ollama():
     try:
-        print("🛑 Stopping Ollama model...")
+        print("🛑 Stopping model...")
         subprocess.run(["ollama", "stop", MODEL_NAME], capture_output=True)
     except Exception as e:
         print(f"⚠ Could not stop Ollama cleanly: {e}")
