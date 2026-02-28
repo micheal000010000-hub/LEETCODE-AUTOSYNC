@@ -8,17 +8,35 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "mistral"
 
 
-def log_token_usage(problem_number, problem_name, prompt_tokens, response_tokens, total_duration):
-    """
-    Appends token usage data into Excel file.
-    """
-
+def log_token_usage(problem_number, problem_name, response_data):
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     stats_folder = os.path.join(BASE_DIR, "llm_stats")
     os.makedirs(stats_folder, exist_ok=True)
 
     excel_path = os.path.join(stats_folder, "token_usage.xlsx")
 
+    # Extract metrics safely
+    prompt_tokens = response_data.get("prompt_eval_count", 0)
+    response_tokens = response_data.get("eval_count", 0)
+    total_duration = response_data.get("total_duration", 0)
+    load_duration = response_data.get("load_duration", 0)
+    prompt_eval_duration = response_data.get("prompt_eval_duration", 0)
+    eval_duration = response_data.get("eval_duration", 0)
+
+    total_tokens = prompt_tokens + response_tokens
+
+    # Convert ns → ms
+    total_ms = total_duration / 1_000_000
+    load_ms = load_duration / 1_000_000
+    prompt_ms = prompt_eval_duration / 1_000_000
+    eval_ms = eval_duration / 1_000_000
+
+    # Compute throughput
+    tokens_per_sec = 0
+    if eval_duration > 0:
+        tokens_per_sec = response_tokens / (eval_duration / 1_000_000_000)
+
+    # Create file if not exists
     if not os.path.exists(excel_path):
         wb = Workbook()
         ws = wb.active
@@ -31,15 +49,16 @@ def log_token_usage(problem_number, problem_name, prompt_tokens, response_tokens
             "Prompt Tokens",
             "Response Tokens",
             "Total Tokens",
-            "Total Duration (ms)"
+            "Total Duration (ms)",
+            "Load Duration (ms)",
+            "Prompt Eval Duration (ms)",
+            "Generation Duration (ms)",
+            "Tokens/sec"
         ])
         wb.save(excel_path)
 
     wb = load_workbook(excel_path)
     ws = wb.active
-
-    total_tokens = (prompt_tokens or 0) + (response_tokens or 0)
-    duration_ms = (total_duration or 0) / 1_000_000  # convert ns → ms
 
     ws.append([
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -49,11 +68,14 @@ def log_token_usage(problem_number, problem_name, prompt_tokens, response_tokens
         prompt_tokens,
         response_tokens,
         total_tokens,
-        round(duration_ms, 2)
+        round(total_ms, 2),
+        round(load_ms, 2),
+        round(prompt_ms, 2),
+        round(eval_ms, 2),
+        round(tokens_per_sec, 2)
     ])
 
     wb.save(excel_path)
-
 
 def generate_solution_post(problem_number, problem_name, difficulty, link, code, language):
     """

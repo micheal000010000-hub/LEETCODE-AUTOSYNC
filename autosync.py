@@ -250,7 +250,7 @@ def main():
 
                     worker_thread.join(timeout=5)
 
-                    stop_ollama()
+                    # stop_ollama()     well this isn't working, as of now there's no issues of sorts which is curbingmy workflow so I'm just removing it for now, In future I'll look into this 23/02/2026
 
                     print("👋 AutoSync exiting cleanly.")
                     return

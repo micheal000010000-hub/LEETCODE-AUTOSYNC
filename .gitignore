@@ -2,4 +2,4 @@
 __pycache__/
 *.pyc
 copy_paste_solution/
-bulk_generated_posts/ollama/
+bulk_generated_posts_ollama/
