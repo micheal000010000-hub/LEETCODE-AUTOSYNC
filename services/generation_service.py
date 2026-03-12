@@ -12,6 +12,7 @@ from config import (
     OLLAMA_MODEL,
     PROMPT_STRATEGY,
     PROMPT_VERSION,
+    TITLE_LETTER_COUNT,
 )
 from services.metrics_service import build_run_record, log_run_record
 
@@ -42,10 +43,11 @@ Instructions:
     - The core technique used
     - The time complexity (Big-O notation)
 - The explanation must match the provided language
+- IMPORTANT: The title text (after "Title: ") must be {TITLE_LETTER_COUNT} characters or fewer.
 
 2. Generate markdown using exactly these sections and no additional top-level sections:
 
-Title: <single line title>
+Title: <single line title, max {TITLE_LETTER_COUNT} characters>
 ## Intuition
 ## Approach
 ## Time Complexity
@@ -78,6 +80,17 @@ def _strip_code_sections(text: str) -> str:
     return content
 
 
+def _enforce_title_limit(text: str) -> str:
+    """Truncate the title value on the 'Title: ' line to TITLE_LETTER_COUNT characters."""
+    def _trim_title(match: re.Match) -> str:
+        title_text = match.group(1)
+        if len(title_text) > TITLE_LETTER_COUNT:
+            title_text = title_text[:TITLE_LETTER_COUNT].rstrip()
+        return f"Title: {title_text}"
+
+    return re.sub(r"(?im)^Title:\s*(.+)$", _trim_title, text)
+
+
 def _compose_final_output(
     analysis_text: str,
     code: str,
@@ -87,6 +100,8 @@ def _compose_final_output(
     cleaned_body = _strip_code_sections(analysis_text)
     if not cleaned_body:
         cleaned_body = "Title: Solution Explanation\n\n## Intuition\nUnable to generate model explanation."
+
+    cleaned_body = _enforce_title_limit(cleaned_body)
 
     lang_tag = _markdown_language_tag(language)
     final_text = (

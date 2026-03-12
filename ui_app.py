@@ -5,6 +5,7 @@ from ui.constants import TAB_NAMES
 from ui.pages import (
     render_activity_tab,
     render_about_tab,
+    render_copy_solutions_tab,
     render_generate_tab,
     render_git_tab,
     render_metrics_tab,
@@ -36,7 +37,7 @@ def main() -> None:
 
     render_sidebar_guide()
 
-    generate_tab, queue_tab, metrics_tab, activity_tab, git_tab, settings_tab, about_tab = st.tabs(
+    generate_tab, queue_tab, metrics_tab, activity_tab, git_tab, settings_tab, copy_tab, about_tab = st.tabs(
         TAB_NAMES
     )
 
@@ -52,6 +53,8 @@ def main() -> None:
         render_git_tab()
     with settings_tab:
         render_settings_tab()
+    with copy_tab:
+        render_copy_solutions_tab()
     with about_tab:
         render_about_tab()
 
@@ -61,7 +64,6 @@ def main() -> None:
         <div class="app-footer">
             <span>Copyright {current_year} LeetCode AutoSync.</span>
             <span><a href="https://wwwmichealangelo.dev/" target="_blank">Personal Website</a></span>
-            <span><a href="https://github.com/micheal000010000-hub/LEETCODE-AUTOSYNC" target="_blank">Contribute to AutoSync</a></span>
             <span><a href="https://github.com/micheal000010000-hub/LEETCODE-SOLUTIONS" target="_blank">LeetCode Solutions Repo</a></span>
         </div>
         """,

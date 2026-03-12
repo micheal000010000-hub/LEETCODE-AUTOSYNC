@@ -1,3 +1,5 @@
+import concurrent.futures
+import glob
 import os
 from datetime import datetime
 
@@ -18,6 +20,40 @@ from services.repo_service import add_solution, push_changes
 from services.system_service import check_ollama_health, get_project_runtime_snapshot
 from ui.activity import add_activity_event, get_activity_dataframe, init_activity_state
 from ui.constants import LANGUAGE_EXTENSION_MAP
+
+
+def _process_single_queue_item(item: dict) -> dict:
+    """Process one queue item in a worker thread. Safe to call from ThreadPoolExecutor."""
+    try:
+        extension = LANGUAGE_EXTENSION_MAP[item["language"]]
+        filename = f"{item['problem_number']}_{item['problem_name'].replace(' ', '_')}.{extension}"
+
+        if item.get("save_to_repo"):
+            add_solution(
+                problem_number=item["problem_number"],
+                problem_name=item["problem_name"],
+                difficulty=item["difficulty"],
+                link=item["link"],
+                solution_code=item["solution_code"],
+                filename=filename,
+            )
+
+        result = generate_solution_post_with_metadata(
+            problem_number=item["problem_number"],
+            problem_name=item["problem_name"],
+            difficulty=item["difficulty"],
+            link=item["link"],
+            code=item["solution_code"],
+            language=item["language"],
+            include_repo_link=item.get("include_repo_link", True),
+        )
+
+        output_path = _save_generated_markdown(
+            item["problem_number"], item["problem_name"], result["text"]
+        )
+        return {**item, "status": "done", "result": result, "output_path": output_path}
+    except Exception as exc:
+        return {**item, "status": "error", "error": str(exc)}
 
 
 def render_sidebar_guide() -> None:
@@ -87,7 +123,11 @@ def render_generate_tab() -> None:
             placeholder="Paste your solution here...",
         )
 
-        submitted = st.form_submit_button("Generate Structured Post")
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            submitted = st.form_submit_button("Generate Structured Post", use_container_width=True)
+        with btn_col2:
+            add_to_queue = st.form_submit_button("+ Add to Queue", type="secondary", use_container_width=True)
 
     if submitted:
         if not all([problem_number.strip(), problem_name.strip(), link.strip(), solution_code.strip()]):
@@ -212,6 +252,113 @@ def render_generate_tab() -> None:
                 details=str(exc),
                 category="generation",
             )
+
+    # --- Add to Queue handler ---
+    if add_to_queue:
+        if not all([problem_number.strip(), problem_name.strip(), link.strip(), solution_code.strip()]):
+            st.error("Problem number, name, link, and code are required to add to queue.")
+        else:
+            if "solution_queue" not in st.session_state:
+                st.session_state["solution_queue"] = []
+            st.session_state["solution_queue"].append({
+                "problem_number": problem_number.strip(),
+                "problem_name": problem_name.strip(),
+                "difficulty": difficulty,
+                "link": link.strip(),
+                "language": language,
+                "solution_code": solution_code.strip(),
+                "save_to_repo": save_to_repo,
+                "include_repo_link": include_repo_link,
+                "status": "pending",
+                "result": None,
+            })
+            st.success(f"Added #{problem_number.strip()} — {problem_name.strip()} to queue ({len(st.session_state['solution_queue'])} total).")
+            add_activity_event(
+                action="Added to queue",
+                status="info",
+                details=f"{problem_number.strip()} - {problem_name.strip()}",
+                category="generation",
+            )
+
+    # --- Batch Queue UI ---
+    queue = st.session_state.get("solution_queue", [])
+    if queue:
+        st.markdown("---")
+        st.markdown("### Batch Queue")
+
+        queue_rows = [
+            {
+                "#": i + 1,
+                "Problem": f"{item['problem_number']} — {item['problem_name']}",
+                "Difficulty": item["difficulty"],
+                "Language": item["language"],
+                "Status": item["status"],
+            }
+            for i, item in enumerate(queue)
+        ]
+        st.dataframe(pd.DataFrame(queue_rows), use_container_width=True)
+
+        pending_count = sum(1 for item in queue if item["status"] == "pending")
+        done_count = sum(1 for item in queue if item["status"] == "done")
+        error_count = sum(1 for item in queue if item["status"] == "error")
+        st.caption(f"{pending_count} pending · {done_count} done · {error_count} error")
+
+        q_col1, q_col2 = st.columns(2)
+        with q_col1:
+            process_queue = st.button(
+                f"Process All ({pending_count} pending)",
+                type="primary",
+                disabled=pending_count == 0,
+                key="process_queue_btn",
+            )
+        with q_col2:
+            clear_queue = st.button("Clear Queue", key="clear_queue_btn")
+
+        if clear_queue:
+            st.session_state["solution_queue"] = []
+            st.rerun()
+
+        if process_queue:
+            pending_items = [item for item in queue if item["status"] == "pending"]
+            batch_progress = st.progress(0, text=f"Processing 0 / {len(pending_items)}...")
+            completed_count = 0
+            results: list = []
+
+            max_workers = min(len(pending_items), 3)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {executor.submit(_process_single_queue_item, item): item for item in pending_items}
+                for future in concurrent.futures.as_completed(future_map):
+                    completed_count += 1
+                    pct = int((completed_count / len(pending_items)) * 100)
+                    batch_progress.progress(pct, text=f"Processing {completed_count} / {len(pending_items)}...")
+                    results.append(future.result())
+
+            result_map = {(r["problem_number"], r["problem_name"]): r for r in results}
+            updated_queue = []
+            for item in queue:
+                key = (item["problem_number"], item["problem_name"])
+                updated_queue.append(result_map.get(key, item))
+            st.session_state["solution_queue"] = updated_queue
+
+            success_count = sum(1 for r in results if r["status"] == "done")
+            fail_count = sum(1 for r in results if r["status"] == "error")
+            st.success(f"Queue processed: {success_count} succeeded, {fail_count} failed.")
+            for r in results:
+                if r["status"] == "done":
+                    add_activity_event(
+                        action="Batch generation succeeded",
+                        status="success",
+                        details=f"{r['problem_number']} - {r['problem_name']}",
+                        category="generation",
+                    )
+                else:
+                    add_activity_event(
+                        action="Batch generation failed",
+                        status="error",
+                        details=f"{r['problem_number']} - {r.get('error', '')}",
+                        category="generation",
+                    )
+            st.rerun()
 
     last_run = st.session_state.get("last_run")
     if last_run:
@@ -499,6 +646,65 @@ def render_settings_tab() -> None:
         ),
         language="bash",
     )
+
+
+def render_copy_solutions_tab() -> None:
+    st.subheader("Copy Paste Solutions")
+    st.caption("Browse every generated markdown solution and copy it with one click.")
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    copy_dir = os.path.join(base_dir, "copy_paste_solution")
+
+    if not os.path.isdir(copy_dir):
+        st.info("No copy_paste_solution folder found yet. Generate a solution first.")
+        return
+
+    files = sorted(glob.glob(os.path.join(copy_dir, "*.md")))
+    if not files:
+        st.info("No generated solutions found yet. Use Generate or the Queue to create some.")
+        return
+
+    file_names = [os.path.basename(f) for f in files]
+
+    if "copy_solutions_index" not in st.session_state:
+        st.session_state["copy_solutions_index"] = 0
+
+    idx = max(0, min(st.session_state["copy_solutions_index"], len(files) - 1))
+    st.session_state["copy_solutions_index"] = idx
+
+    # Jump selector
+    selected_name = st.selectbox(
+        "Jump to solution",
+        options=file_names,
+        index=idx,
+        key="copy_solutions_selector",
+    )
+    if selected_name != file_names[idx]:
+        st.session_state["copy_solutions_index"] = file_names.index(selected_name)
+        st.rerun()
+
+    # Navigation row
+    nav_prev, nav_counter, nav_next = st.columns([1, 3, 1])
+    with nav_prev:
+        if st.button("← Prev", disabled=idx == 0, use_container_width=True):
+            st.session_state["copy_solutions_index"] -= 1
+            st.rerun()
+    with nav_counter:
+        st.markdown(
+            f"<p style='text-align:center;padding-top:6px;font-weight:600'>{idx + 1} / {len(files)}</p>",
+            unsafe_allow_html=True,
+        )
+    with nav_next:
+        if st.button("Next →", disabled=idx == len(files) - 1, use_container_width=True):
+            st.session_state["copy_solutions_index"] += 1
+            st.rerun()
+
+    current_file = files[st.session_state["copy_solutions_index"]]
+    with open(current_file, "r", encoding="utf-8") as fh:
+        content = fh.read()
+
+    st.caption(f"File: `{os.path.basename(current_file)}`")
+    st.code(content, language="markdown")  # built-in copy button in top-right corner
 
 
 def render_about_tab() -> None:

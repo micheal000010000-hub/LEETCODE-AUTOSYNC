@@ -12,5 +12,6 @@ TAB_NAMES = [
     "Activity",
     "Git",
     "Settings",
+    "Copy Solutions",
     "About",
 ]

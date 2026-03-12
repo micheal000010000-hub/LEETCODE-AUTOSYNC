@@ -19,6 +19,7 @@ LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "600"))
 PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1.0.0")
 PROMPT_STRATEGY = os.getenv("PROMPT_STRATEGY", "analysis_only_append_code_v1")
+TITLE_LETTER_COUNT = int(os.getenv("TITLE_LETTER_COUNT", "75"))
 
 if not LEETCODE_REPO_PATH:
     raise ValueError("LEETCODE_REPO_PATH not set")

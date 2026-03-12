@@ -1,4 +1,5 @@
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -28,11 +29,18 @@ def run_bulk() -> int:
     return 0
 
 
+def run_status() -> int:
+    from services.system_service import get_status
+
+    print(json.dumps(get_status(), ensure_ascii=True, indent=2))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run current LeetCode AutoSync workflows")
     parser.add_argument(
         "mode",
-        choices=["ui", "cli", "bulk"],
+        choices=["ui", "cli", "bulk", "status"],
         help="Workflow mode to run",
     )
     args = parser.parse_args()
@@ -41,7 +49,9 @@ def main() -> int:
         return run_ui()
     if args.mode == "cli":
         return run_cli()
-    return run_bulk()
+    if args.mode == "bulk":
+        return run_bulk()
+    return run_status()
 
 
 if __name__ == "__main__":
