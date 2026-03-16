@@ -5,3 +5,4 @@ copy_paste_solution/
 bulk_generated_posts_ollama/
 llm_stats/runs.db
 llm_stats/
+venv/
