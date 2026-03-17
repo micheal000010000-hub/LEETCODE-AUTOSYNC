@@ -44,7 +44,7 @@ Instructions:
     - The time complexity (Big-O notation)
 - The explanation must match the provided language
 - IMPORTANT: The title text (after "Title: ") must be {TITLE_LETTER_COUNT} characters or fewer.
-- IMPORTANT: The title MUST be a fully complete, grammatically whole phrase — never cut off mid-word or mid-sentence. Plan the title length upfront so that the entire title fits within {TITLE_LETTER_COUNT} characters naturally. If a draft title is too long, shorten it by simplifying words, not by truncating.
+- **IMPORTANT: The title MUST be a fully complete, grammatically whole phrase — never cut off mid-word or mid-sentence. Plan the title length upfront so that the entire title fits within {TITLE_LETTER_COUNT} characters naturally. If a draft title is too long, shorten it by simplifying words, not by truncating.**
 
 2. Generate markdown using exactly these sections and no additional top-level sections:
 
