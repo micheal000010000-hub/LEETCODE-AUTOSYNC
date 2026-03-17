@@ -303,16 +303,7 @@ def render_generate_tab() -> None:
         error_count = sum(1 for item in queue if item["status"] == "error")
         st.caption(f"{pending_count} pending · {done_count} done · {error_count} error")
 
-        q_col1, q_col2 = st.columns(2)
-        with q_col1:
-            process_queue = st.button(
-                f"Process All ({pending_count} pending)",
-                type="primary",
-                disabled=pending_count == 0,
-                key="process_queue_btn",
-            )
-        with q_col2:
-            clear_queue = st.button("Clear Queue", key="clear_queue_btn")
+        clear_queue = st.button("Clear Queue", key="clear_queue_btn")
 
         auto_process_queue = st.session_state.pop("auto_process_queue_now", False)
 
@@ -320,7 +311,7 @@ def render_generate_tab() -> None:
             st.session_state["solution_queue"] = []
             st.rerun()
 
-        if process_queue or (auto_process_queue and pending_count > 0):
+        if auto_process_queue and pending_count > 0:
             pending_entries = [
                 (idx, item) for idx, item in enumerate(queue) if item["status"] == "pending"
             ]
