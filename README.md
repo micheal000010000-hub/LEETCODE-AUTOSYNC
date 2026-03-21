@@ -213,6 +213,15 @@ pip install -r requirements.txt
 
 You also need Ollama installed and running locally.
 
+## 🚀 Codespaces Setup
+
+This project supports GitHub Codespaces.
+
+Steps:
+1. Click "Code" -> "Codespaces"
+2. Create a new Codespace
+3. Environment auto-configures using `devcontainer.json`
+
 ## How To Run
 
 ### Preferred launcher
